@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pydantic
+sqlalchemy
+databases
+Pillow
+python-multipart
+python-dotenv
+ultralytics
+geojson
+psycopg2-binary

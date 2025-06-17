@@ -51,3 +51,6 @@ node_modules/
 htmlcov/
 .pytest_cache/
 /models
+
+
+/app/models/floorplan_detection_best.pt

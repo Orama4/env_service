@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Any, Optional
+from typing import Any, Optional, List
 from datetime import datetime
 
 class EnvironmentCreate(BaseModel):
@@ -15,6 +15,28 @@ class EnvironmentOut(EnvironmentCreate):
 
     class Config:
         orm_mode = True
+
+
+class UserResponse(BaseModel):
+    id: int
+    role: str
+    email: str
+    createdAt: str
+    lastLogin: Optional[str]
+    firstname: Optional[str] = None
+    lastname: Optional[str] = None
+
+
+class EnvironmentResponse(BaseModel):
+    id: int
+    name: str
+    address: str
+    pathCartographie: str
+    scale: int
+    createdAt: str
+    users: List[UserResponse]
+
+
 
 class EnvironmentUpdate(BaseModel):
     name: Optional[str] = None

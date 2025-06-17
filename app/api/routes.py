@@ -5,16 +5,18 @@ from app.services.prediction import handle_prediction
 from app.models.loader import loaded_models
 from sqlalchemy.orm import Session
 from app.core.db import SessionLocal
-from app.schemas.environement import EnvironmentCreate, EnvironmentOut
+from app.schemas.environement import EnvironmentCreate, EnvironmentResponse, EnvironmentOut
 from app.services.environement import create_environment, save_uploaded_file
 from app.core.db import get_db   
 from app.services.environement import get_environment_by_id
 from app.schemas.environement import EnvironmentUpdate
 from app.services.environement import update_environment
+from app.schemas.environement import UserResponse
 from typing import List
 from app.services.environement import get_all_environments
-from app.services.environement import delete_environment
+from app.services.environement import delete_environment,get_users_with_normal_role,assign_user_to_environment
 import json
+from typing import Optional
 
 
 
@@ -39,35 +41,27 @@ async def predict(model_id: str, file: UploadFile = File(...)):
 
 @router.post("/env/", response_model=EnvironmentOut)
 async def create_environment_route(
-    file: UploadFile = File(...),
     env_data: str = Form(...),
-    envID: str = None,
+    envID: Optional[int] = Form(None),
     db: Session = Depends(get_db)
 ):
     try:
-        print(f"Received env_data: {env_data}")
+        # debug log
+        print("Debug env_data:", env_data)
+
+        # parse JSON payload
         env_dict = json.loads(env_data)
-        print(f"Parsed env_dict: {env_dict}")
-        
-        # Try to validate each field to pinpoint the issue
-        try:
-            env = EnvironmentCreate(**env_dict)
-            print(f"Validation passed: {env}")
-        except Exception as validation_error:
-            print(f"Validation error: {validation_error}")
-            raise HTTPException(status_code=422, detail=str(validation_error))
-        
-        file_path = await save_uploaded_file(file)
-        if not env.pathCartographie:
-            env.pathCartographie = file_path
-        
-        return update_environment(db, int(envID), env) if envID else create_environment(db=db, env=env)
+        env = EnvironmentCreate(**env_dict)  # validate input
+
+        # decide between create or update
+        if envID:
+            return update_environment(db, envID, env)
+        return create_environment(db=db, env=env)
+
     except json.JSONDecodeError as je:
-        print(f"JSON Decode Error: {je}")
         raise HTTPException(status_code=400, detail="Invalid JSON in env_data")
     except Exception as e:
-        print(f"Unexpected error: {e}")
-        raise HTTPException(status_code=500, detail=f"Error creating environment: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error saving environment: {e}")
     
     
 @router.get("/env/{env_id}", response_model=EnvironmentOut)
@@ -79,6 +73,15 @@ def update_environment_route(env_id: int, update_data: EnvironmentUpdate, db: Se
     return update_environment(db, env_id, update_data)
 
 
+@router.get("/env/{env_id}/assign-user/{user_id}")
+def assign_user_route(
+    env_id: int,
+    user_id: int,
+    assign: bool = True,
+    db: Session = Depends(get_db)
+):
+    return assign_user_to_environment(db, user_id, env_id, assign)
+
 
 @router.delete("/env/{env_id}")
 def delete_environment_route(env_id: int, db: Session = Depends(get_db)):
@@ -86,6 +89,10 @@ def delete_environment_route(env_id: int, db: Session = Depends(get_db)):
 
 
 
-@router.get("/env/", response_model=List[EnvironmentOut])
+@router.get("/env/", response_model=List[EnvironmentResponse])
 def get_all_environments_route(db: Session = Depends(get_db)):
     return get_all_environments(db)
+
+@router.get("/users/normal", response_model=List[UserResponse])
+def fetch_users_with_normal_role(db: Session = Depends(get_db)):
+    return get_users_with_normal_role(db)
